@@ -4,12 +4,10 @@
 #include "utils.hpp"
 
 #include "cxxopts.hpp"
-//#pragma GCC diagnostic push
-//#pragma GCC diagnostic ignored "-Wmismatched-tags"
-//#include "nlohmann/json.hpp"
-//#pragma GCC diagnostic pop
 
 constexpr const char* name = "mole";
+
+asio::ip::tcp::endpoint parse_remote(const std::string& remote);
 
 int main(int argc, char** argv) {
     cxxopts::Options options(name, "a simple proxy");
@@ -17,8 +15,9 @@ int main(int argc, char** argv) {
     options.add_options()("help", "show help");
     options.add_options()("d,dev", "dev mode");
     options.add_options()("m,mode", "mode", cxxopts::value<std::string>(), "local/remote");
+    options.add_options()("r,remote", "remote address", cxxopts::value<std::string>(), "remote");
     options.add_options()("k,key", "key for crypto", cxxopts::value<std::string>(), "key");
-    options.add_options()("c,mole_cfg", "mole_cfg file", cxxopts::value<std::string>(), "mole_cfg.json");
+    options.add_options()("p,port", "listen port", cxxopts::value<uint16_t>()->default_value("20903"), "port");
     auto args = options.parse(argc, argv);
 
     if (args.count("help") > 0) {
@@ -37,27 +36,47 @@ int main(int argc, char** argv) {
 
     auto& cfg = mole::mole_cfg::self();
     cfg.dev(args.count("dev") > 0);
+    cfg.port(args["port"].as<uint16_t>());
     if (args.count("key") > 0) {
         cfg.key(args["key"].as<std::string>());
     }
+    if (args.count("remote") > 0) {
+        auto ep = parse_remote(args["remote"].as<std::string>());
+        cfg.remote_endpoint(ep);
+    }
 
     if (cfg.key().empty()) {
-        std::cerr << "key is required!" << std::endl;
+        std::cerr << "ERROR: key is required!"<< std::endl;
+        return 0;
+    }
+    if (mode == "local" && cfg.remote_endpoint().address().is_unspecified()) {
+        std::cerr << "ERROR: remote is required!"<< std::endl;
         return 0;
     }
 
     mole::logging_init(name, cfg.dev());
     spdlog::info("start {}, mode: {}, dev={}", name, mode, cfg.dev());
 
-    cfg.key();
-
     if (mode == "local") {
-        auto srv = mole::tcp_srv<mole::local_session>(6666u);
+        auto&& ep = cfg.remote_endpoint();
+        spdlog::info("remote: {}:{}", ep.address().to_string(), ep.port());
+        auto srv = mole::tcp_srv<mole::local_session>(cfg.port());
         srv.run();
     } else {
-        auto srv = mole::tcp_srv<mole::remote_session>(7777u);
+        auto srv = mole::tcp_srv<mole::remote_session>(cfg.port());
         srv.run();
     }
 
     return 0;
+}
+
+
+asio::ip::tcp::endpoint parse_remote(const std::string& remote) {
+    auto ss = mole::split(remote, ':');
+    if (ss.size() != 2) {
+        return {};
+    }
+    auto ip = asio::ip::make_address(ss[0]);
+    auto port = static_cast<uint16_t>(std::stoul(ss[1]));
+    return {ip, port};
 }

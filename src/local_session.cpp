@@ -2,8 +2,6 @@
 
 namespace mole {
 
-static const auto ep = tcp::endpoint{tcp::v4(), 7777u};
-
 local_session::local_session(asio::io_context& ctx):
     io_ctx_{ctx}, local_socket_{ctx}, remote_socket_{ctx},
     local_buff_{0}, remote_buff_{0}, local_received_{0}, remote_received_{0},
@@ -154,6 +152,7 @@ void local_session::remote_receive(size_t expected, void (local_session::*handle
 
 void local_session::remote_connect() {
     auto self = shared_from_this();
+    auto&& ep = mole_cfg::self().remote_endpoint();
     remote_socket_.async_connect(ep, [this, self](const std::error_code& ec) {
         if (ec) {
             spdlog::error("remote_connect error: {}", ec.message());
