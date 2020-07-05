@@ -3,7 +3,7 @@
 namespace mole {
 
 remote_session::remote_session(asio::io_context& ctx):
-    io_ctx_{ctx}, local_socket_{ctx}, target_socket_{ctx}, target_resolver_{ctx},
+    local_socket_{ctx}, target_socket_{ctx}, target_resolver_{ctx},
     local_buff_{}, target_buff_{}, local_received_{0},
     crypto_{mole_cfg::self().key()} {
     local_rx_data_.reserve(BUFF_SIZE);
@@ -27,7 +27,7 @@ void remote_session::local_receive(size_t expected, void (remote_session::*handl
     asio::async_read(local_socket_, asio::buffer(buff, remain), asio::transfer_at_least(expected - local_received_),
         [this, handler, self](const std::error_code& ec, size_t sz) {
             if (ec) {
-                spdlog::error("local_receive error: {}", ec.message());
+                spdlog::debug("local_receive error: {}", ec.message());
                 return;
             }
             local_received_ += sz;
@@ -57,7 +57,7 @@ void remote_session::local_command() {
     local_rx_data_.resize(pl - mole_crypto::extra_size());
     auto ok = crypto_.decrypt(local_buff_.data() + nl + 2, pl, local_rx_data_.data());
     if (!ok) {
-        spdlog::error("decrypt error");
+        spdlog::debug("decrypt error");
         return;
     }
 
@@ -79,7 +79,7 @@ void remote_session::local_command() {
         spdlog::info("target: {}:{}", domain, port);
         target_resolve(std::move(domain), port);
     } else {
-        spdlog::error("type 0x{:02x} NOT support", addr_type);
+        spdlog::warn("type 0x{:02x} NOT support", addr_type);
         local_reply(0x08); // Address type not supported
         return;
     }
@@ -95,7 +95,7 @@ void remote_session::local_reply(uint8_t reply) {
     auto self = shared_from_this();
     asio::async_write(local_socket_, asio::buffer(local_tx_data_), [this, self](const std::error_code& ec, std::size_t) {
         if (ec) {
-            spdlog::error("local_reply error: {}", ec.message());
+            spdlog::debug("local_reply error: {}", ec.message());
             return;
         }
 
@@ -134,7 +134,7 @@ void remote_session::local_stream() {
     auto self = shared_from_this();
     asio::async_write(target_socket_, asio::buffer(local_rx_data_), [this, self](const std::error_code& ec, std::size_t sz) {
         if (ec) {
-            spdlog::error("local_stream async_write error: {}", ec.message());
+            spdlog::debug("local_stream async_write error: {}", ec.message());
             return;
         }
         spdlog::debug("target_socket_ async_write: {}", sz);
@@ -147,7 +147,7 @@ void remote_session::target_resolve(std::string&& domain, uint16_t port) {
     target_resolver_.async_resolve(domain, std::to_string(port),
         [this, self](const std::error_code& ec, const tcp::resolver::results_type& endpoints) {
         if (ec) {
-            spdlog::error("target_resolve error: {}", ec.message());
+            spdlog::debug("target_resolve error: {}", ec.message());
             local_reply(0x04); // Host unreachable
             return;
         }
@@ -165,7 +165,7 @@ void remote_session::target_connect(const tcp::resolver::results_type& endpoints
     auto self = shared_from_this();
     asio::async_connect(target_socket_, endpoints, [this, self](const std::error_code& ec, const tcp::endpoint&){
         if (ec) {
-            spdlog::error("target_connect error: {}", ec.message());
+            spdlog::debug("target_connect error: {}", ec.message());
             local_reply(0x03); // Network unreachable
             return;
         }
@@ -179,7 +179,7 @@ void remote_session::target_stream() {
     auto self = shared_from_this();
     target_socket_.async_read_some(asio::buffer(target_buff_), [this, self](const std::error_code& ec, std::size_t sz) {
         if (ec) {
-            spdlog::error("target_stream async_read_some error: {}", ec.message());
+            spdlog::debug("target_stream async_read_some error: {}", ec.message());
             return;
         }
         spdlog::debug("target_socket_ async_read_some: {}", sz);
@@ -195,7 +195,7 @@ void remote_session::target_stream() {
 
         asio::async_write(local_socket_, asio::buffer(local_tx_data_), [this, self](const std::error_code& ec, std::size_t) {
             if (ec) {
-                spdlog::error("target_stream async_write error: {}", ec.message());
+                spdlog::debug("target_stream async_write error: {}", ec.message());
                 return;
             }
             target_stream();

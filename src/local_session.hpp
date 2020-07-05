@@ -36,14 +36,13 @@ private:
     void remote_stream();
 
 private:
-    asio::io_context& io_ctx_;
     tcp::socket local_socket_;
     tcp::socket remote_socket_;
 
-    static constexpr size_t BUFF_SIZE = 8192;
+    static constexpr size_t BUFF_SIZE = 1024 * 32;
 
     std::array<uint8_t, BUFF_SIZE> local_buff_;
-    std::array<uint8_t, BUFF_SIZE * 2> remote_buff_;
+    std::array<uint8_t, BUFF_SIZE + 128> remote_buff_;
 
     size_t local_received_;
     size_t remote_received_;

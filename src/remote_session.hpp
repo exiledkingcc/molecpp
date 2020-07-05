@@ -34,12 +34,11 @@ private:
     void target_stream();
 
 private:
-    asio::io_context& io_ctx_;
     tcp::socket local_socket_;
     tcp::socket target_socket_;
     tcp::resolver target_resolver_;
 
-    static constexpr size_t BUFF_SIZE = 8192;
+    static constexpr size_t BUFF_SIZE = 1024 * 32;
 
     std::array<uint8_t, BUFF_SIZE> local_buff_;
     std::array<uint8_t, BUFF_SIZE> target_buff_;
