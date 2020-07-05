@@ -37,7 +37,7 @@ void local_session::local_receive(size_t expected, void (local_session::*handler
 }
 
 void local_session::local_hello() {
-    if (local_received_ < local_buff_[1] + 2) {
+    if (local_received_ < local_buff_[1] + 2u) {
         local_receive(local_buff_[1] + 2, &local_session::local_hello);
         return;
     }
