@@ -43,5 +43,5 @@ public:
         return default_level_;
     }
 };
-} // namespace mole_cfg
+} // namespace cfg
 } // namespace spdlog
