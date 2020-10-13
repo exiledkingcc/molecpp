@@ -39,4 +39,33 @@ mole_cfg& mole_cfg::self() {
     return cfg;
 }
 
+
+constexpr int64_t CACHE_MILLIS = 1000 * 60;
+
+domain_cache & domain_cache::self() {
+    static domain_cache cache;
+    return cache;
+}
+
+void domain_cache::set(const std::string &domain, const endpoint_vector &endpoints) {
+    auto now = std::chrono::system_clock::now();
+    auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+    cache_[domain] = {endpoints, millis};
+}
+
+domain_cache::endpoint_vector domain_cache::get(const std::string &domain) {
+    auto it = cache_.find(domain);
+    if (it == cache_.end()) {
+        return {};
+    }
+    auto now = std::chrono::system_clock::now();
+    auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+    if (it->second.ts + CACHE_MILLIS < millis) {
+        cache_.erase(it);
+        return {};
+    }
+    return it->second.endpoints;
+}
+
+
 }

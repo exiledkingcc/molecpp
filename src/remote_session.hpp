@@ -30,7 +30,7 @@ private:
     void local_stream();
 
     void target_resolve(std::string&& domain, uint16_t port);
-    void target_connect(const tcp::resolver::results_type& endpoints);
+    void target_connect(const std::vector<tcp::endpoint>& endpoints);
     void target_stream();
 
 private:

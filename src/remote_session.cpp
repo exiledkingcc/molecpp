@@ -67,7 +67,7 @@ void remote_session::local_command() {
         uint16_t port = static_cast<uint16_t>(local_rx_data_[8] << 8u) | local_rx_data_[9];
         spdlog::info("target: {}.{}.{}.{}:{}", local_rx_data_[4], local_rx_data_[5], local_rx_data_[6], local_rx_data_[7], port);
         auto ip = asio::ip::address_v4{{local_rx_data_[4], local_rx_data_[5], local_rx_data_[6], local_rx_data_[7]}};
-        target_connect(tcp::resolver::results_type::create({ip, port}, "", ""));
+        target_connect({{ip, port}});
         return;
     } else if (addr_type == 0x03) {
         // domain
@@ -77,7 +77,17 @@ void remote_session::local_command() {
         uint16_t port = static_cast<uint16_t>(pt[0] << 8u) | pt[1];
         auto domain = std::string{dm, pt};
         spdlog::info("target: {}:{}", domain, port);
-        target_resolve(std::move(domain), port);
+        auto& dc = domain_cache::self();
+        auto rr = dc.get(domain);
+        if (rr.empty()) {
+            target_resolve(std::move(domain), port);
+        } else {
+            // replace port
+            for (auto& r: rr) {
+                r.port(port);
+            }
+            target_connect(rr);
+        }
     } else {
         spdlog::warn("type 0x{:02x} NOT support", addr_type);
         local_reply(0x08); // Address type not supported
@@ -157,11 +167,15 @@ void remote_session::target_resolve(std::string&& domain, uint16_t port) {
             spdlog::debug("resolve result: {}", x.address().to_string(), x.port());
         }
 #endif
-        target_connect(endpoints);
+        std::vector<tcp::endpoint> vv;
+        for (auto& ep: endpoints) {
+            vv.push_back(ep.endpoint());
+        }
+        target_connect(vv);
     });
 }
 
-void remote_session::target_connect(const tcp::resolver::results_type& endpoints) {
+void remote_session::target_connect(const std::vector<tcp::endpoint>& endpoints) {
     auto self = shared_from_this();
     asio::async_connect(target_socket_, endpoints, [this, self](const std::error_code& ec, const tcp::endpoint&){
         if (ec) {
