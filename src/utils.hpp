@@ -1,34 +1,42 @@
 #pragma once
 
-#include <string>
-
 #define ASIO_STANDALONE
 #include "asio.hpp"
 #include "spdlog/spdlog.h"
 
+#ifdef __declare_ref__
+#undef __declare_ref__
+#endif
+
 #define __declare_ref__(TYPE, NAME) \
 public:\
     const TYPE& NAME() const {\
-        return _##NAME;\
+        return NAME##_;\
     }\
     auto& NAME(const TYPE& val) {\
-        _##NAME = val;\
+        NAME##_ = val;\
         return *this;\
     }\
 private:\
-    TYPE _##NAME;
+    TYPE NAME##_;
+
+
+#ifdef __declare_val__
+#undef __declare_val__
+#endif
 
 #define __declare_val__(TYPE, NAME) \
 public:\
     TYPE NAME() const {\
-        return _##NAME;\
+        return NAME##_;\
     }\
     auto& NAME(TYPE val) {\
-        _##NAME = val;\
+        NAME##_ = val;\
         return *this;\
     }\
 private:\
-    TYPE _##NAME;
+    TYPE NAME##_;
+
 
 namespace mole {
 
@@ -39,22 +47,20 @@ inline std::vector<std::string> split(const std::string& ss) {
     return split(ss, ' ');
 }
 
-class mole_cfg {
-public:
+struct mole_cfg {
     static mole_cfg& self();
 
     mole_cfg(const mole_cfg&) = delete;
     mole_cfg(mole_cfg&&) = delete;
 
+    __declare_ref__(std::string, key)
+    __declare_ref__(asio::ip::tcp::endpoint, remote_endpoint)
+
+    __declare_val__(uint16_t, port)
+    __declare_val__(bool, dev)
+
 private:
-    explicit mole_cfg() = default;
-
-__declare_ref__(std::string, key)
-__declare_ref__(asio::ip::tcp::endpoint, remote_endpoint)
-
-__declare_val__(uint16_t, port)
-__declare_val__(bool, dev)
-
+    explicit mole_cfg();
 };
 
 }

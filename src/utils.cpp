@@ -30,10 +30,13 @@ std::vector<std::string> split(const std::string& ss, char c) {
     return rr;
 }
 
+mole_cfg::mole_cfg():
+    port_{20903},dev_{false}
+    {}
+
 mole_cfg& mole_cfg::self() {
     static mole_cfg cfg;
     return cfg;
 }
-
 
 }

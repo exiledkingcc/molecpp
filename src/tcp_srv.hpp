@@ -1,7 +1,5 @@
 #pragma once
 
-#include <deque>
-
 #include "mole_crypto.hpp"
 #include "utils.hpp"
 
